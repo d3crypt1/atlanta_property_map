@@ -9,11 +9,13 @@ mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 export default function AtlantaPropertyMap() {
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const [year, setYear] = useState(2016);
+  const [year, setYear] = useState(2024);
   const [geoData, setGeoData] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const legendRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
     const checkMobile = () => {
@@ -40,6 +42,7 @@ export default function AtlantaPropertyMap() {
   }, [isMobile]);
 
   useEffect(() => {
+    setLoading(true);
     fetch(`/data/atlanta_${year}.geojson`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -93,7 +96,8 @@ export default function AtlantaPropertyMap() {
           });
         }
       })
-      .catch(err => console.error('Failed to load geojson:', err));
+      .catch(err => console.error('Failed to load geojson:', err))
+      .finally(() => setLoading(false)); 
   }, [year]);
 
   useEffect(() => {
@@ -228,6 +232,20 @@ export default function AtlantaPropertyMap() {
           style={{ display: "block", margin: "1rem auto" }}
         />
       </div>
+      {loading && (
+        <div style={{
+          position: 'absolute',
+          top: 80,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          padding: '0.5rem 1rem',
+          borderRadius: '4px',
+          zIndex: 9999
+        }}>
+          <span>Loading map data...</span>
+        </div>
+      )}
       <div ref={mapContainer} style={{ flexGrow: 1 }} />
     </div>
   );
