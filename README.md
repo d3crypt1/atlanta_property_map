@@ -1,0 +1,1 @@
+# atlanta_property_map
