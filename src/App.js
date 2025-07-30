@@ -151,10 +151,17 @@ export default function AtlantaPropertyMap() {
     const svg = d3.select(legendRef.current);
     svg.selectAll("*").remove();
 
-    const width = 500;
+    const svgWidth = parseInt(svg.attr("width"));
+    let temp_width = 500;
+
+    if (svgWidth < 500) {
+      temp_width = svgWidth;
+    }
+
+    const width = temp_width;
     const height = 30;
     const margin = { top: 10, bottom: 10 };
-    const svgWidth = parseInt(svg.attr("width"));
+    
     const gradientX = (svgWidth - width) / 2;
 
     const scale = d3.scaleLog()
