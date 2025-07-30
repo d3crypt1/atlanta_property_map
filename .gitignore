@@ -26,6 +26,7 @@ yarn-error.log*
 
 # Optional npm files
 package-lock.json
+yarn.lock
 
 # Coverage/test output
 coverage/
