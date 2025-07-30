@@ -37,7 +37,7 @@ export default function AtlantaPropertyMap() {
     });
 
     map.current.on("load", () => {
-      setYear(2016);
+      setYear(2024);
     });
   }, [isMobile]);
 
