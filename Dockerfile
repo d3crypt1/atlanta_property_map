@@ -1,14 +1,21 @@
-# Step 1: Build the React app
-FROM node:18 AS builder
+# 1. Build stage
+FROM node:20 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
 
-# Step 2: Serve with nginx
-FROM nginx:alpine
-COPY --from=builder /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# 2. Production image with static file server
+FROM node:20 AS production
+WORKDIR /app
+
+# Install static file server
+RUN npm install -g serve
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+
+# Expose port and serve
+EXPOSE 4173
+CMD ["serve", "-s", "dist", "-l", "4173"]
