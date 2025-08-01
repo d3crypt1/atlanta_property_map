@@ -6,8 +6,7 @@ import {
 } from "recharts";
 
 const NeighborhoodDataSheet = () => {
-  const rawName = useParams().name;
-  const name = decodeURIComponent(rawName)
+  const { name } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +20,7 @@ const NeighborhoodDataSheet = () => {
           const res = await fetch(`/data/atlanta_${year}.geojson`);
           const geo = await res.json();
           const match = geo.features.find(f => f.properties.NAME === name);
-          if (match && match.properties.avgprice > 0) {
+          if (match) {
             const props = match.properties;
             results.push({
               year,
@@ -42,24 +41,21 @@ const NeighborhoodDataSheet = () => {
 
   if (loading) return <div style={{ padding: "1rem" }}>Loading data for {name}...</div>;
 
-  if (data.length === 0) {
-    return (
-      <div style={{ padding: "1rem", fontFamily: "sans-serif" }}>
-        <button onClick={() => navigate("/")} style={{ marginBottom: "1rem" }}>← Back to Map</button>
-        <h1>{name} Neighborhood Data Sheet</h1>
-        <p>There have been no residential sales in this neighborhood.</p>
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: "1rem", fontFamily: "sans-serif" }}>
       <button onClick={() => navigate("/")} style={{ marginBottom: "1rem" }}>← Back to Map</button>
-      <h1>{name}</h1>
+      <h1>{name} Neighborhood Data Sheet</h1>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "1rem" }}>
-        <div><strong>Start Year:</strong> {data[0].year}</div>
-        <div><strong>End Year:</strong> {data[data.length - 1].year}</div>
+        {data.length > 0 && (
+          <>
+            <div><strong>Start Year:</strong> {data[0].year}</div>
+            <div><strong>End Year:</strong> {data[data.length - 1].year}</div>
+            <div><strong>Latest Avg Price:</strong> ${data[data.length - 1].avgprice.toLocaleString()}</div>
+            <div><strong>Latest Median Price:</strong> ${data[data.length - 1].medianprice.toLocaleString()}</div>
+            <div><strong>Latest Parcels:</strong> {data[data.length - 1].parcels}</div>
+          </>
+        )}
       </div>
 
       <h2 style={{ marginTop: "2rem" }}>Price Trends</h2>
@@ -81,7 +77,7 @@ const NeighborhoodDataSheet = () => {
             <th>Year</th>
             <th>Avg Price</th>
             <th>Median Price</th>
-            <th>Sales Volume</th>
+            <th>Parcels</th>
           </tr>
         </thead>
         <tbody>
@@ -95,6 +91,24 @@ const NeighborhoodDataSheet = () => {
           ))}
         </tbody>
       </table>
+    
+<button
+  onClick={() => navigate(`/compare?primary=${encodeURIComponent(name)}`)}
+  style={{
+    marginTop: "2rem",
+    padding: "0.6rem 1rem",
+    fontSize: "1rem",
+    backgroundColor: "#2c7fb8",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer"
+  }}
+>
+  Compare Neighborhoods
+</button>
+
+
     </div>
   );
 };
