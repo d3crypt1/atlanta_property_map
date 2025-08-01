@@ -10,10 +10,11 @@ Atlanta Neighborhood Annual Mean Sale Prices from 2016-2024 displayed on a map w
 This repository can be used to build and run a docker container or run locally.
 
 An external dependency exists to render the map correctly and a token is required.
+[Mapbox](https://www.mapbox.com/)
 
 ### Local test run from terminal:
 * Clone or download this repository eg:
-`git clone https://github.com/d3crypt1/atlanta_property_mapo.git`
+`git clone https://github.com/d3crypt1/atlanta_property_map.git`
 
 * From the atlanta_property_map directory:
 `nvm install`
