@@ -3,6 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Slider } from "@mui/material";
 import * as d3 from "d3";
+import { useNavigate } from "react-router-dom";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -15,6 +16,7 @@ export default function AtlantaPropertyMap() {
   const [isMobile, setIsMobile] = useState(false);
   const legendRef = useRef(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const loadGeoJSON = (targetYear) => {
     if (!map.current) return;
@@ -142,7 +144,7 @@ export default function AtlantaPropertyMap() {
             <strong>${NAME}</strong><br/>
             Avg Price: $${parseInt(avgprice).toLocaleString()}<br/>
             Median Price: $${parseInt(medianprice).toLocaleString()}<br/>
-            Parcels: ${parcels}
+            Volume: ${parcels}
           `)
           .addTo(map.current);
       } else {
@@ -152,6 +154,11 @@ export default function AtlantaPropertyMap() {
 
     map.current.on("mousemove", handleMouseMove);
     map.current.on("mouseleave", "nbhd-fill", () => popup.remove());
+
+    map.current.on("click", "nbhd-fill", (e) => {
+      const name = e.features[0].properties.NAME;
+      if (name) navigate(`/neighborhood/${encodeURIComponent(name)}`);
+    });
 
     return () => {
       map.current.off("mousemove", handleMouseMove);
