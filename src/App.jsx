@@ -16,16 +16,15 @@ export default function AtlantaPropertyMap() {
   const legendRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
-
+  // Detect mobile
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Initialize map
   useEffect(() => {
     if (map.current) return;
 
@@ -37,79 +36,75 @@ export default function AtlantaPropertyMap() {
     });
 
     map.current.on("load", () => {
-      setYear(2024);
+      setYear(2024); // set initial state to trigger fetch
     });
   }, [isMobile]);
 
+  // Load and update GeoJSON based on selected year
   useEffect(() => {
-    if (!map.current) return;
-  
-    const loadHandler = () => {
-      setLoading(true);
-      fetch(`/data/atlanta_${year}.geojson`)
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
-        .then(data => {
-          data.features.forEach(f => {
-            const price = f.properties?.avgprice;
-            f.properties.avgprice_log10 = price && price > 0 ? Math.log10(price) : -1;
+    if (!map.current || !map.current.isStyleLoaded()) return;
+
+    setLoading(true);
+    fetch(`/data/atlanta_${year}.geojson`)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        data.features.forEach(f => {
+          const price = f.properties?.avgprice;
+          f.properties.avgprice_log10 = price && price > 0 ? Math.log10(price) : -1;
+        });
+
+        setGeoData(data);
+
+        if (map.current.getSource("nbhd")) {
+          map.current.getSource("nbhd").setData(data);
+        } else {
+          map.current.addSource("nbhd", {
+            type: "geojson",
+            data,
           });
-  
-          if (map.current.getSource("nbhd")) {
-            map.current.getSource("nbhd").setData(data);
-          } else {
-            map.current.addSource("nbhd", {
-              type: "geojson",
-              data,
-            });
-            map.current.addLayer({
-              id: "nbhd-fill",
-              type: "fill",
-              source: "nbhd",
-              paint: {
-                "fill-color": [
-                  "case",
-                  ["<", ["get", "avgprice_log10"], 0], "#999999",
-                  [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "avgprice_log10"],
-                    4.7, "#00007F",
-                    5.0, "#002EFF",
-                    5.3, "#00FFFF",
-                    5.6, "#7FFF00",
-                    5.9, "#FFFF00",
-                    6.2, "#FF7F00",
-                    6.41, "#FF0000"
-                  ]
-                ],
-                "fill-opacity": 0.6,
-              },
-            });
-            map.current.addLayer({
-              id: "nbhd-outline",
-              type: "line",
-              source: "nbhd",
-              paint: {
-                "line-color": "#555",
-                "line-width": 1,
-              },
-            });
-          }
-        })
-        .catch(err => console.error("Failed to load geojson:", err))
-        .finally(() => setLoading(false));
-    };
-  
-    map.current.on("load", loadHandler);
-  
-    return () => {
-      map.current.off("load", loadHandler);
-    };
+          map.current.addLayer({
+            id: "nbhd-fill",
+            type: "fill",
+            source: "nbhd",
+            paint: {
+              "fill-color": [
+                "case",
+                ["<", ["get", "avgprice_log10"], 0], "#999999",
+                [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "avgprice_log10"],
+                  4.7, "#00007F",
+                  5.0, "#002EFF",
+                  5.3, "#00FFFF",
+                  5.6, "#7FFF00",
+                  5.9, "#FFFF00",
+                  6.2, "#FF7F00",
+                  6.41, "#FF0000"
+                ]
+              ],
+              "fill-opacity": 0.6,
+            },
+          });
+          map.current.addLayer({
+            id: "nbhd-outline",
+            type: "line",
+            source: "nbhd",
+            paint: {
+              "line-color": "#555",
+              "line-width": 1,
+            },
+          });
+        }
+      })
+      .catch(err => console.error("Failed to load geojson:", err))
+      .finally(() => setLoading(false));
   }, [year]);
-  
+
+  // Play/Pause Animation
   useEffect(() => {
     let interval;
     if (playing) {
@@ -120,8 +115,9 @@ export default function AtlantaPropertyMap() {
     return () => clearInterval(interval);
   }, [playing]);
 
+  // Popup handling on hover — depends on geoData
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !geoData) return;
 
     const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
 
@@ -132,7 +128,8 @@ export default function AtlantaPropertyMap() {
       const features = map.current.queryRenderedFeatures(e.point, { layers: ["nbhd-fill"] });
       if (features.length > 0) {
         const feature = features[0];
-        const { NAME, nbhd_name, avgprice, medianprice, parcels } = feature.properties;
+        const { NAME, avgprice, medianprice, parcels } = feature.properties;
+
         popup
           .setLngLat(e.lngLat)
           .setHTML(`
@@ -156,40 +153,27 @@ export default function AtlantaPropertyMap() {
     };
   }, [geoData]);
 
+  // Legend redraws with each year change
   useEffect(() => {
     if (!legendRef.current) return;
+
     const svg = d3.select(legendRef.current);
     svg.selectAll("*").remove();
 
     const svgWidth = parseInt(svg.attr("width"));
-    let temp_width = 500;
-
-    if (svgWidth < 500) {
-      temp_width = svgWidth;
-    }
-
-    const width = temp_width;
+    const width = Math.min(500, svgWidth);
     const height = 30;
     const margin = { top: 10, bottom: 10 };
-    
     const gradientX = (svgWidth - width) / 2;
 
-    const scale = d3.scaleLog()
-      .domain([50000, 2600000])
-      .range([0, width]);
-
-    const color = d3.scaleSequential()
-      .domain([4.7, 6.41])
-      .interpolator(d3.interpolateTurbo);
-
+    const scale = d3.scaleLog().domain([50000, 2600000]).range([0, width]);
+    const color = d3.scaleSequential().domain([4.7, 6.41]).interpolator(d3.interpolateTurbo);
     const gradientId = "color-gradient";
+
     const defs = svg.append("defs");
     const gradient = defs.append("linearGradient")
       .attr("id", gradientId)
-      .attr("x1", "0%")
-      .attr("x2", "100%")
-      .attr("y1", "0%")
-      .attr("y2", "0%");
+      .attr("x1", "0%").attr("x2", "100%").attr("y1", "0%").attr("y2", "0%");
 
     const stops = [4.7, 5.0, 5.3, 5.6, 5.9, 6.2, 6.41];
     stops.forEach((d, i) => {
@@ -199,49 +183,62 @@ export default function AtlantaPropertyMap() {
     });
 
     svg.append("rect")
-    .attr("x", gradientX)
-    .attr("y", margin.top)
-    .attr("width", width)
-    .attr("height", height )
-    .style("fill", `url(#${gradientId})`);  
+      .attr("x", gradientX)
+      .attr("y", margin.top)
+      .attr("width", width)
+      .attr("height", height)
+      .style("fill", `url(#${gradientId})`);
 
     const axis = d3.axisBottom(scale)
       .tickValues([50000, 100000, 200000, 400000, 800000, 1600000, 2600000])
       .tickFormat(d => `$${d3.format("~s")(d)}`);
 
     const axisGroup = svg.append("g")
-    .attr("transform", `translate(${gradientX},${height + margin.bottom})`)
-    .call(axis);
-  
-    // Style the axis text
-    axisGroup.selectAll("text")
-      .style("font-size", "12px")
-      .style("fill", "#333");
-    
-    // Add axis title
+      .attr("transform", `translate(${gradientX},${height + margin.bottom})`)
+      .call(axis);
+
+    axisGroup.selectAll("text").style("font-size", "12px").style("fill", "#333");
+
     svg.append("text")
-    .attr("x", width / 2)
-    .attr("y", margin.top)
-    .attr("text-anchor", "middle")
-    .style("font-size", "14px")
-    .style("fill", "#333")
-    .text("Median Sale Price ($)");     
+      .attr("x", width / 2)
+      .attr("y", margin.top)
+      .attr("text-anchor", "middle")
+      .style("font-size", "14px")
+      .style("fill", "#333")
+      .text("Median Sale Price ($)");
   }, [year]);
 
   return (
     <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: isMobile ? "0.5rem" : "1rem", backgroundColor: "white", zIndex: 10 }}>
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center" }}>
-          <h2 style={{ fontSize: isMobile ? "1.2rem" : "1.5rem" }}>Atlanta Property Map ({year})</h2>
-          <button style={{ marginTop: isMobile ? "0.5rem" : 0 }} onClick={() => setPlaying(!playing)}>{playing ? "Pause" : "Play"}</button>
+          <h2 style={{ fontSize: isMobile ? "1.2rem" : "1.5rem" }}>Atlanta Neighborhoods ({year})</h2>
+          <button style={{ marginTop: isMobile ? "0.5rem" : 0 }} onClick={() => setPlaying(!playing)}>
+            {playing ? "Pause" : "Play"}
+          </button>
         </div>
-        <Slider
-          min={2016}
-          max={2024}
-          value={year}
-          onChange={(e, val) => setYear(val)}
-          marks
-        />
+        <div style={{ marginTop: isMobile ? "0.5rem" : "1rem" }}>
+          <label htmlFor="year-slider" style={{ fontWeight: "bold", display: "block", marginBottom: "0.25rem" }}>
+            Year
+          </label>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <span style={{ marginRight: "0.5rem", minWidth: "3ch", textAlign: "right" }}>2016</span>
+            <Slider
+              id="year-slider"
+              min={2016}
+              max={2024}
+              step={1}
+              marks
+              value={year}
+              onChange={(e, val) => {
+                if (typeof val === "number") setYear(val);
+              }}
+              valueLabelDisplay="auto"
+              sx={{ flexGrow: 1, mx: 2 }}
+            />
+            <span style={{ marginLeft: "0.5rem", minWidth: "3ch" }}>2024</span>
+          </div>
+        </div>
         <svg
           ref={legendRef}
           width="550"
