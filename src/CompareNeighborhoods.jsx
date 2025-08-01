@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import styles from "./CompareNeighborhoods.module.css";
 import Select from "react-select";
 
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -92,19 +93,29 @@ const CompareNeighborhoods = () => {
 
       <label htmlFor="compare-select">Select up to 5 neighborhoods:</label>
       <Select
-  isMulti
-  options={neighborhoods.map(n => ({ value: n, label: n }))}
-  value={neighborhoods
-    .filter(n => selected.includes(n))
-    .map(n => ({ value: n, label: n }))}
-  onChange={handleSelect}
-  placeholder="Select neighborhoods (max 5)..."
-  isClearable
-  closeMenuOnSelect={true}
-/>
-
-        <div style={{ marginTop: "2rem" }}>
-          <ResponsiveContainer width="100%" height={350}>
+        isMulti
+        options={neighborhoods.map(n => ({ value: n, label: n }))}
+        value={neighborhoods
+          .filter(n => selected.includes(n))
+          .map(n => ({ value: n, label: n }))}
+        onChange={handleSelect}
+        placeholder="Select neighborhoods (max 5)..."
+        isClearable
+        closeMenuOnSelect={true}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "2rem",
+          width: "100%",
+          boxSizing: "border-box",
+        }}>
+          <div style={{ flex: "1 1 48%", minWidth: "300px" }}>
+            <h2>Average Price</h2>
+            <ResponsiveContainer width="100%" height={350}>
             <LineChart data={years.map(y => ({ year: y }))} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" domain={[2016, 2024]} type="number" />
@@ -125,8 +136,41 @@ const CompareNeighborhoods = () => {
                 ) : null
               )}
             </LineChart>
-          </ResponsiveContainer>
-        </div>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ flex: "1 1 48%", minWidth: "300px" }}>
+            <h2>Sales Volume</h2>
+            <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={years.map(y => {
+              const entry = { year: y };
+              for (let n of selected) {
+                const match = datasets[n]?.find(d => d.year === y);
+                entry[n] = match?.parcels || 0;
+              }
+              return entry;
+            })} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="year" domain={[2016, 2024]} type="number" />
+              <YAxis />
+              <Tooltip />
+              <Legend verticalAlign="bottom" />
+              {selected.map((n, idx) =>
+                datasets[n] ? (
+                  <Line
+                    key={n + "-parcels"}
+                    type="monotone"
+                    dataKey={n}
+                    stroke={colorPalette[idx % colorPalette.length]}
+                    name={n}
+                    dot={false}
+                  />
+                ) : null
+              )}
+            </LineChart>
+            </ResponsiveContainer>
+          </div>
+      </div>
     </div>
   );
 };

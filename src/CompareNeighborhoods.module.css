@@ -1,0 +1,28 @@
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  flex-direction: row;
+}
+
+.chartBlock {
+  flex: 1 1 48%;
+  min-width: 300px;
+  max-width: 100%;
+}
+
+/* Responsive override for mobile */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .chartBlock {
+    width: 100%;
+  }
+}
