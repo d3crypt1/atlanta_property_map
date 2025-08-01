@@ -42,64 +42,74 @@ export default function AtlantaPropertyMap() {
   }, [isMobile]);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/data/atlanta_${year}.geojson`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        data.features.forEach(f => {
-          const price = f.properties?.avgprice;
-          f.properties.avgprice_log10 = price && price > 0 ? Math.log10(price) : -1;
-        });
-        setGeoData(data);
-        if (map.current.getSource("nbhd")) {
-          map.current.getSource("nbhd").setData(data);
-        } else {
-          map.current.addSource("nbhd", {
-            type: "geojson",
-            data,
+    if (!map.current) return;
+  
+    const loadHandler = () => {
+      setLoading(true);
+      fetch(`/data/atlanta_${year}.geojson`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          data.features.forEach(f => {
+            const price = f.properties?.avgprice;
+            f.properties.avgprice_log10 = price && price > 0 ? Math.log10(price) : -1;
           });
-          map.current.addLayer({
-            id: "nbhd-fill",
-            type: "fill",
-            source: "nbhd",
-            paint: {
-              "fill-color": [
-              "case",
-              ["<", ["get", "avgprice_log10"], 0], "#999999",
-                [
-                "interpolate",
-                ["linear"],
-                ["get", "avgprice_log10"],
-                4.7, "#00007F",
-                5.0, "#002EFF",
-                5.3, "#00FFFF",
-                5.6, "#7FFF00",
-                5.9, "#FFFF00",
-                6.2, "#FF7F00",
-                6.41, "#FF0000"
-                ]
-              ],  
-              "fill-opacity": 0.6,
-            },
-          });
-          map.current.addLayer({
-            id: "nbhd-outline",
-            type: "line",
-            source: "nbhd",
-            paint: {
-              "line-color": "#555",
-              "line-width": 1,
-            },
-          });
-        }
-      })
-      .catch(err => console.error('Failed to load geojson:', err))
-      .finally(() => setLoading(false)); 
+  
+          if (map.current.getSource("nbhd")) {
+            map.current.getSource("nbhd").setData(data);
+          } else {
+            map.current.addSource("nbhd", {
+              type: "geojson",
+              data,
+            });
+            map.current.addLayer({
+              id: "nbhd-fill",
+              type: "fill",
+              source: "nbhd",
+              paint: {
+                "fill-color": [
+                  "case",
+                  ["<", ["get", "avgprice_log10"], 0], "#999999",
+                  [
+                    "interpolate",
+                    ["linear"],
+                    ["get", "avgprice_log10"],
+                    4.7, "#00007F",
+                    5.0, "#002EFF",
+                    5.3, "#00FFFF",
+                    5.6, "#7FFF00",
+                    5.9, "#FFFF00",
+                    6.2, "#FF7F00",
+                    6.41, "#FF0000"
+                  ]
+                ],
+                "fill-opacity": 0.6,
+              },
+            });
+            map.current.addLayer({
+              id: "nbhd-outline",
+              type: "line",
+              source: "nbhd",
+              paint: {
+                "line-color": "#555",
+                "line-width": 1,
+              },
+            });
+          }
+        })
+        .catch(err => console.error("Failed to load geojson:", err))
+        .finally(() => setLoading(false));
+    };
+  
+    map.current.on("load", loadHandler);
+  
+    return () => {
+      map.current.off("load", loadHandler);
+    };
   }, [year]);
-
+  
   useEffect(() => {
     let interval;
     if (playing) {
