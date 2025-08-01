@@ -16,36 +16,11 @@ export default function AtlantaPropertyMap() {
   const legendRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
-  // Detect mobile
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (map.current) return;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: [-84.41, 33.765],
-      zoom: isMobile ? 9.5 : 10.2,
-    });
-
-    map.current.on("load", () => {
-      setYear(2024); // set initial state to trigger fetch
-    });
-  }, [isMobile]);
-
-  // Load and update GeoJSON based on selected year
-  useEffect(() => {
-    if (!map.current || !map.current.isStyleLoaded()) return;
+  const loadGeoJSON = (targetYear) => {
+    if (!map.current) return;
 
     setLoading(true);
-    fetch(`/data/atlanta_${year}.geojson`)
+    fetch(`/data/atlanta_${targetYear}.geojson`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -102,9 +77,44 @@ export default function AtlantaPropertyMap() {
       })
       .catch(err => console.error("Failed to load geojson:", err))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (map.current) return;
+
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/light-v11",
+      center: [-84.41, 33.765],
+      zoom: isMobile ? 9.5 : 10.2,
+    });
+
+    map.current.on("load", () => {
+      setYear(2024); // Triggers the useEffect below
+    });
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    if (map.current.isStyleLoaded()) {
+      loadGeoJSON(year);
+    } else {
+      const onStyleLoad = () => {
+        loadGeoJSON(year);
+        map.current.off("styledata", onStyleLoad);
+      };
+      map.current.on("styledata", onStyleLoad);
+    }
   }, [year]);
 
-  // Play/Pause Animation
   useEffect(() => {
     let interval;
     if (playing) {
@@ -115,16 +125,12 @@ export default function AtlantaPropertyMap() {
     return () => clearInterval(interval);
   }, [playing]);
 
-  // Popup handling on hover — depends on geoData
   useEffect(() => {
     if (!map.current || !geoData) return;
 
     const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
 
     function handleMouseMove(e) {
-      const layerExists = map.current.getLayer("nbhd-fill");
-      if (!layerExists) return;
-
       const features = map.current.queryRenderedFeatures(e.point, { layers: ["nbhd-fill"] });
       if (features.length > 0) {
         const feature = features[0];
@@ -153,7 +159,6 @@ export default function AtlantaPropertyMap() {
     };
   }, [geoData]);
 
-  // Legend redraws with each year change
   useEffect(() => {
     if (!legendRef.current) return;
 
@@ -173,7 +178,8 @@ export default function AtlantaPropertyMap() {
     const defs = svg.append("defs");
     const gradient = defs.append("linearGradient")
       .attr("id", gradientId)
-      .attr("x1", "0%").attr("x2", "100%").attr("y1", "0%").attr("y2", "0%");
+      .attr("x1", "0%").attr("x2", "100%")
+      .attr("y1", "0%").attr("y2", "0%");
 
     const stops = [4.7, 5.0, 5.3, 5.6, 5.9, 6.2, 6.41];
     stops.forEach((d, i) => {
@@ -212,7 +218,7 @@ export default function AtlantaPropertyMap() {
     <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: isMobile ? "0.5rem" : "1rem", backgroundColor: "white", zIndex: 10 }}>
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center" }}>
-          <h2 style={{ fontSize: isMobile ? "1.2rem" : "1.5rem" }}>Atlanta Neighborhoods ({year})</h2>
+          <h2 style={{ fontSize: isMobile ? "1.2rem" : "1.5rem" }}>Atlanta Property Map ({year})</h2>
           <button style={{ marginTop: isMobile ? "0.5rem" : 0 }} onClick={() => setPlaying(!playing)}>
             {playing ? "Pause" : "Play"}
           </button>
